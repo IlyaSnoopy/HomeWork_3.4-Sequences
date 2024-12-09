@@ -15,60 +15,95 @@ object NoteService {
     }
 
     fun add(content: String): Note {
-        val note = Note(id = noteIdCounter++, content = content)
+        val note = Note(id = ++noteIdCounter, content = content)
         notes.add(note)
         return note
     }
 
     fun edit(noteId: Long, newContent: String) {
-        val note = getById(noteId) ?: throw Exception("Заметка с указанным ID не найдена")
-        if (note.isDeleted) throw Exception("Заметка с указанным ID удалена")
+        val note = getById(noteId) ?: throw IllegalArgumentException("Заметка с указанным ID не найдена")
+        if (note.isDeleted) throw IllegalStateException("Заметка с указанным ID удалена")
         note.content = newContent
     }
 
     fun delete(noteId: Long) {
-        val note = getById(noteId) ?: throw Exception("Заметка с указанным ID не найдена")
-        if (note.isDeleted) throw Exception("Заметка с указанным ID уже удалена")
+        val note = getById(noteId) ?: throw IllegalArgumentException("Заметка с указанным ID не найдена")
+        if (note.isDeleted) throw IllegalStateException("Заметка с указанным ID уже удалена")
         note.isDeleted = true
-        while (note.comments.iterator().hasNext()) {
-            note.comments.iterator().next().isDeleted = true
+        for (comment in note.comments) {
+            comment.isDeleted = true
         }
     }
 
     fun restore(noteId: Long) {
-        val note = getById(noteId) ?: throw Exception("Заметка с указанным ID не найдена")
-        if (!note.isDeleted) throw Exception("Заметка с указанным ID не удалена(не требует восстановления)")
+        val note = getById(noteId) ?: throw IllegalArgumentException("Заметка с указанным ID не найдена")
+        if (!note.isDeleted) throw IllegalStateException("Заметка с указанным ID не удалена (не требует восстановления)")
         note.isDeleted = false
     }
 
     fun createComment(noteId: Long, text: String): Comment {
-        val note = getById(noteId) ?: throw Exception("Заметка с указанным ID не найдена")
-        if (note.isDeleted) throw Exception("Заметка с указанным ID удалена")
-        val comment = Comment(id = commentIdCounter++, text = text)
+        val note = getById(noteId) ?: throw IllegalArgumentException("Заметка с указанным ID не найдена")
+        if (note.isDeleted) throw IllegalStateException("Заметка с указанным ID удалена")
+        val comment = Comment(id = ++commentIdCounter, text = text)
         note.comments.add(comment)
         return comment
     }
 
     fun editComment(noteId: Long, commentId: Long, newContent: String) {
-        val note = getById(noteId) ?: throw Exception("Заметка с указанным ID не найдена")
-        if (note.isDeleted) throw Exception("Заметка с указанным ID удалена")
-        val comment = note.comments.get(commentId.toInt()) ?: throw Exception("Комментарий с указанным ID не найден")
-        if (comment.isDeleted) throw Exception("Комментарий с указанным ID удалён")
-        comment.text = newContent
+        val note = getById(noteId) ?: throw IllegalArgumentException("Заметка с указанным ID не найдена")
+        if (note.isDeleted) throw IllegalStateException("Заметка с указанным ID удалена")
+        var commentToEdit: Comment? = null
+
+        for (comment in note.comments) {
+            if (comment.id == commentId && !comment.isDeleted) {
+                commentToEdit = comment
+                break
+            }
+        }
+
+        if (commentToEdit != null) {
+            commentToEdit.text = newContent
+        } else {
+            throw IllegalStateException("Невозможно редактировать несуществующий или уже удалённый комментарий")
+        }
     }
 
     fun deleteComment(noteId: Long, commentId: Long) {
-        val note = getById(noteId) ?: throw Exception("Заметка с указанным ID не найдена")
-        if (note.isDeleted) throw Exception("Заметка с указанным ID удалена")
-        val comment = note.comments.get(commentId.toInt()) ?: throw Exception("Комментарий с указанным ID не найден")
-        comment.isDeleted = true
+        val note = getById(noteId) ?: throw IllegalArgumentException("Заметка с указанным ID не найдена")
+        if (note.isDeleted) throw IllegalStateException("Заметка с указанным ID удалена")
+        var commentToDelete: Comment? = null
+
+        for (comment in note.comments) {
+            if (comment.id == commentId && !comment.isDeleted) {
+                commentToDelete = comment
+                break
+            }
+        }
+
+        if (commentToDelete != null) {
+            commentToDelete.isDeleted = true
+        } else {
+            throw IllegalStateException("Невозможно удалить несуществующий или уже удалённый комментарий")
+        }
     }
 
     fun restoreComment(noteId: Long, commentId: Long) {
-        val note = getById(noteId) ?: throw Exception("Заметка с указанным ID не найдена")
-        if (note.isDeleted) throw Exception("Заметка с указанным ID удалена")
-        val comment = note.comments.get(commentId.toInt()) ?: throw Exception("Комментарий с указанным ID не найден")
-        comment.isDeleted = false
+        val note = getById(noteId) ?: throw IllegalArgumentException("Заметка с указанным ID не найдена")
+        if (note.isDeleted) throw IllegalStateException("Заметка с указанным ID удалена")
+        var commentToRestore: Comment? = null
+
+        for (comment in note.comments) {
+            if (comment.id == commentId && comment.isDeleted) {
+                commentToRestore = comment
+                break
+            }
+        }
+
+        if (commentToRestore != null) {
+            commentToRestore.isDeleted = false
+        } else {
+            throw IllegalStateException("Невозможно восстановить несуществующий или не удалённый (не требующий восстановления) комментарий")
+        }
     }
 
     fun get(): List<Note> {
@@ -84,14 +119,10 @@ object NoteService {
     fun getById(noteId: Long): Note? {
         for (note in notes) {
             if (note.id == noteId) {
-                if (!note.isDeleted) {
-                    return note
-                } else {
-                    throw Exception("Заметка с указанным ID удалена")
-                }
+                return note
             }
         }
-        throw Exception("Заметка с указанным ID не найдена")
+        throw IllegalArgumentException("Заметка с указанным ID не найдена")
     }
 
     fun getComments(noteId: Long): List<Comment> {
@@ -100,10 +131,10 @@ object NoteService {
                 if (!note.isDeleted) {
                     return note.comments
                 } else {
-                    throw Exception("Заметка с указанным ID удалена")
+                    throw IllegalStateException("Заметка с указанным ID удалена")
                 }
             }
         }
-        throw Exception("Заметка с указанным ID не найдена")
+        throw IllegalArgumentException("Заметка с указанным ID не найдена")
     }
 }

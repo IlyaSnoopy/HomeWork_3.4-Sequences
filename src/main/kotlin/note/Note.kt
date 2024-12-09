@@ -1,4 +1,5 @@
 package note
+
 import comment.Comment
 
 data class Note(

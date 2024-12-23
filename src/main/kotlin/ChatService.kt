@@ -10,9 +10,7 @@ object ChatService {
 
     fun createChat(userId1: Long, userId2: Long) {
         val chatKey = Pair(userId1, userId2)
-        if (chats[chatKey] == null) {
-            chats[chatKey] = Chat(userId2)
-        }
+        chats.putIfAbsent(chatKey, Chat(userId2))
     }
 
     fun deleteChat(userId1: Long, userId2: Long) {
@@ -28,7 +26,7 @@ object ChatService {
     }
 
     fun getChats(userId: Long): List<Chat> {
-        return chats.filter { it.key.first == userId || it.key.second == userId }.map { it.value }
+        return chats.filter { it.key.first == userId || it.key.second == userId }.map { it.value }.toList()
     }
 
     fun getUnreadChatsCount(userId: Long): Int {
@@ -36,7 +34,10 @@ object ChatService {
     }
 
     fun getLastMessages(userId: Long): List<String> {
-        return getChats(userId).map { it.getLastMessageOrDefault() }
+        return getChats(userId)
+            .asSequence()
+            .map { it.getLastMessageOrDefault() }
+            .toList()
     }
 
     fun getMessagesFromChat(userId1: Long, userId2: Long, count: Int): List<Message> {
